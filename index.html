@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>محاسبه اقساط موبایل فرهنگیان</title>
+<style>
+    body { font-family: Tahoma, sans-serif; direction: rtl; margin:0; padding:0; background:#f0f4f7;}
+    .container { max-width:550px; width:95%; margin:30px auto; padding:20px; background:#fff; border-radius:15px; box-shadow:0 6px 18px rgba(0,0,0,0.12);}
+    h1 { text-align:center; color:#00796b; margin-bottom:25px;}
+    label { display:block; font-weight:bold; margin:12px 0 5px;}
+    input, select, button { width:100%; padding:12px; margin-bottom:15px; border-radius:8px; border:1px solid #ccc; font-size:16px; box-sizing:border-box;}
+    input:focus, select:focus { outline:none; border-color:#00796b; box-shadow:0 0 5px rgba(0,121,107,0.3);}
+    button { background:#00796b; color:white; border:none; font-weight:bold; cursor:pointer; transition:0.3s;}
+    button:hover { background:#005f50;}
+    .history { margin-top:20px; display:none; }
+    table { width:100%; border-collapse:collapse; margin-top:10px;}
+    th, td { padding:10px; text-align:center; border-bottom:1px solid #ddd;}
+    th { background:#00796b; color:white;}
+    @media(max-width:480px){ h1{font-size:22px;} input,select,button{font-size:15px; padding:10px;} }
+</style>
+</head>
+<body>
+
+<div class="container">
+<h1>محاسبه اقساط موبایل فرهنگیان</h1>
+<form id="purchaseForm">
+    <label>نام خریدار:</label>
+    <input type="text" id="buyer" placeholder="نام خریدار" required>
+
+    <label>نام گوشی:</label>
+    <input type="text" id="phone" placeholder="مثلاً سامسونگ Galaxy A54" required>
+
+    <label>نام ضامن:</label>
+    <input type="text" id="guarantor" placeholder="نام ضامن" required>
+
+    <label>تاریخ خرید:</label>
+    <input type="date" id="date" required>
+
+    <label>قیمت اولیه (تومان):</label>
+    <input type="number" id="m2" placeholder="مثلاً 20000000" required>
+
+    <label>مبلغ پیش قسط (تومان):</label>
+    <input type="number" id="pi" placeholder="مثلاً 5000000" required>
+
+    <label>تعداد اقساط:</label>
+    <select id="m">
+        <option value="5">۵ ماهه</option>
+        <option value="6" selected>۶ ماهه</option>
+        <option value="7">۷ ماهه</option>
+        <option value="8">۸ ماهه</option>
+    </select>
+
+    <button type="button" onclick="saveData()">سیو</button>
+    <button type="button" onclick="toggleHistory()">تاریخچه</button>
+</form>
+
+<div class="history" id="historyContainer">
+    <h2>تاریخچه خریدها</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>نام خریدار</th>
+                <th>نام گوشی</th>
+                <th>نام ضامن</th>
+                <th>تاریخ خرید</th>
+                <th>مبلغ هر قسط</th>
+                <th>جمع کل پرداخت</th>
+            </tr>
+        </thead>
+        <tbody id="historyBody">
+            <tr><td colspan="6" style="text-align:center;">تاریخچه خالی است</td></tr>
+        </tbody>
+    </table>
+</div>
+
+</div>
+
+<!-- کتابخانه PersianDate برای تاریخ شمسی -->
+<script src="https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/persian-date.min.js"></script>
+
+<script>
+// محاسبه قسط
+function calculate(m2, pi, m){
+    let a = ((m2*0.05)+m2)-pi;
+    let b = ((a*(m*0.03))+a)/m;
+    let total = pi + b*m;
+    return {b:b, total:total};
+}
+
+// تبدیل تاریخ به شمسی با PersianDate
+function toJalali(dateStr){
+    if(!dateStr) return '';
+    // dateStr فرمت YYYY-MM-DD
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const pDate = new persianDate([y, m, d]);
+    return pDate.format('YYYY/MM/DD');
+}
+
+// ذخیره اطلاعات در LocalStorage
+function saveData(){
+    const buyer=document.getElementById("buyer").value.trim();
+    const phone=document.getElementById("phone").value.trim();
+    const guarantor=document.getElementById("guarantor").value.trim();
+    const date=document.getElementById("date").value;
+    const m2=parseInt(document.getElementById("m2").value);
+    const pi=parseInt(document.getElementById("pi").value);
+    const m=parseInt(document.getElementById("m").value);
+
+    if(!buyer || !phone || !guarantor || !date || !m2 || !pi){ alert("لطفا تمام فیلدها را پر کنید!"); return;}
+
+    const calc = calculate(m2, pi, m);
+    const purchase = {
+        buyer,
+        phone,
+        guarantor,
+        date: toJalali(date),
+        monthly: calc.b,
+        total: calc.total
+    };
+
+    let history = JSON.parse(localStorage.getItem("purchaseHistory"))||[];
+    history.push(purchase);
+    localStorage.setItem("purchaseHistory", JSON.stringify(history));
+
+    alert("اطلاعات با موفقیت ذخیره شد!");
+    document.getElementById("purchaseForm").reset();
+    loadHistory();
+}
+
+// بارگذاری تاریخچه
+function loadHistory(){
+    const history = JSON.parse(localStorage.getItem("purchaseHistory")) || [];
+    const tbody = document.getElementById("historyBody");
+    tbody.innerHTML = "";
+    if(history.length === 0){
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">تاریخچه خالی است</td></tr>`;
+        return;
+    }
+    history.forEach(item=>{
+        const monthly = item.monthly || 0;
+        const total = item.total || 0;
+        tbody.innerHTML += `<tr>
+            <td>${item.buyer}</td>
+            <td>${item.phone}</td>
+            <td>${item.guarantor}</td>
+            <td>${item.date}</td>
+            <td>${monthly.toFixed(0).toLocaleString()}</td>
+            <td>${total.toFixed(0).toLocaleString()}</td>
+        </tr>`;
+    });
+}
+
+// نمایش یا مخفی کردن تاریخچه
+function toggleHistory(){
+    const container = document.getElementById("historyContainer");
+    loadHistory();
+    container.style.display = (container.style.display==="none" || container.style.display==="") ? "block" : "none";
+}
+
+// بارگذاری اولیه
+window.onload = loadHistory;
+</script>
+
+</body>
+</html>
